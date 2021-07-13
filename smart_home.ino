@@ -2,27 +2,28 @@
 #include <LiquidCrystal_I2C.h>
 #include <SoftwareSerial.h>
 
-//DHT11 관련 핀 활성화
-#define DHTPIN A1   //인풋 핀
+#define DHTPIN A1
 #define DHTTYPE DHT11
+
 DHT dht(DHTPIN, DHTTYPE);
 SoftwareSerial PISerial(2, 3);
-
-//LCD관련 세팅
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-//미세먼지 센서관련 핀 활성화, 변수 선언
-int Vo = A0;          //적외선 핀 번호
+int Vo = A0;
 int dust_led = 10;
 float Vo_value = 0;
 float dust_voltage = 0;
 
-//환풍기 관련 핀, 변수 설정
-#define fanPin  6             //모터 디지털 핀
-int fanCondition = 0;       //fan ON(1) / OFF(0) 상태
-int fanAuto = 0;            //fan auto mode 상태  0 = semi / 1 = auto
+#define AIRPIN 13
+#define BOILPIN 12
+#define HUMIDIFPIN 11
+#define DEHUMIFPIN 9
+#define FANPIN 8
+#define valvePin 7
+#define LED3 6
+#define LED2 5
+#define LED1 4
 
-#define valvePin 7          //서보모터 핀
 int valve_angle = 0;
 
 void setup() {
@@ -30,17 +31,32 @@ void setup() {
   Serial.begin(9600);
   PISerial.begin(9600);
   PISerial.print("\n\n\n\ninit success!\n\n\n\n");
-
-  //fan settings
-  pinMode(fanPin, OUTPUT);
-
+  
   //미세먼지 센서 핀 모드 설정
   pinMode(Vo, INPUT);
   pinMode(dust_led, OUTPUT);
 
   //가스벨브 세팅
   pinMode(valvePin, OUTPUT);
+  
+  pinMode(AIRPIN, OUTPUT);
+  pinMode(BOILPIN, OUTPUT);
+  pinMode(HUMIDIFPIN, OUTPUT);
+  pinMode(DEHUMIFPIN, OUTPUT);
+  pinMode(FANPIN, OUTPUT);
+  pinMode(LED1, OUTPUT);
+  pinMode(LED2, OUTPUT);
+  pinMode(LED3, OUTPUT);
 
+  digitalWrite(AIRPIN, LOW);
+  digitalWrite(BOILPIN, LOW);
+  digitalWrite(HUMIDIFPIN, LOW);
+  digitalWrite(DEHUMIFPIN, LOW);
+  digitalWrite(FANPIN, LOW);
+  digitalWrite(LED1, LOW);
+  digitalWrite(LED2, LOW);
+  digitalWrite(LED3, LOW);
+  
   //LCD intro & settings
   lcd.init();
   lcd.backlight();
@@ -66,7 +82,6 @@ bool boiler = false;
 int humidity = 0;
 bool humidifier = false;
 bool dehumidifier = false;
-bool air = false;
 bool fan = false;
 bool gas_servo = false;
 int gas_servo_count = 0;
@@ -84,60 +99,60 @@ void loop() {
      char cmd = Serial.read();
 
     if (cmd == 'A'){
-      // 에어컨 on
+      digitalWrite(AIRPIN, HIGH);
       aircon = true;
     }else if (cmd == 'a'){
-      // 에어컨 off
+      digitalWrite(AIRPIN, LOW);
       aircon = false;
     }else if (cmd == 'B'){
-      // 보일러 on
+      digitalWrite(BOILPIN, HIGH);
       boiler = true;
     }else if (cmd == 'b'){
-      // 보일러 off
+      digitalWrite(BOILPIN, LOW);
       boiler = false;
     }else if (cmd == 'D'){
-      // 제습기 on
+      digitalWrite(DEHUMIFPIN, HIGH);
       dehumidifier = true;
     }else if (cmd == 'd'){
-      // 제습기 off
+      digitalWrite(DEHUMIFPIN, LOW);
       dehumidifier = false;
     }else if (cmd == 'H'){
-      // 가습기 on
+      digitalWrite(HUMIDIFPIN, HIGH);
       humidifier = true;
     }else if (cmd == 'h'){
-      // 가습기 off
+      digitalWrite(HUMIDIFPIN, LOW);
       humidifier = false;
     }else if (cmd == 'F'){
-      // 환풍기 on
+      digitalWrite(FANPIN, HIGH);
       fan = true;
     }else if (cmd == 'f'){
-      // 환풍기 off
+      digitalWrite(FANPIN, LOW);
       fan = false;
     }else if (cmd == 'G'){      
       // 가스밸브 on
       gas_servo = true;
-      gas_angle = 1;
+      valve_angle = 1;
     }else if (cmd == 'g'){
       // 가스밸브 off
       gas_servo = true;
-      gas_angle = 0;
+      valve_angle = 0;
     }else if (cmd == 'L'){
-      // 거실 led on
+      digitalWrite(LED1, HIGH);
       room_led[0] = true;
     }else if (cmd == 'l'){
-      // 거실 led off
+      digitalWrite(LED1, LOW);
       room_led[0] = false;
     }else if (cmd == 'R'){
-      // 방 led on
+      digitalWrite(LED2, HIGH);
       room_led[1] = true;
     }else if (cmd == 'r'){
-      // 방 led off
+      digitalWrite(LED2, LOW);
       room_led[1] = false;
     }else if (cmd == 'T'){
-      // 화장실 led on
+      digitalWrite(LED3, HIGH);
       room_led[2] = true;
     }else if (cmd == 't'){
-      // 화장실 led off
+      digitalWrite(LED3, LOW);
       room_led[2] = false;
     }
 
@@ -171,31 +186,6 @@ void loop() {
     lcd.print(temperature);
     lcd.print("C");
 
-    //====================  환풍기  ==================================
-
-    //    if (fanAuto == 1) {               //fan auto / semi 판단
-    //      Serial.println("auto fan mode : ON");
-    //      if (dust_voltage >= 50) {       // fan auto 모드시, dust >= 50 이라면 fan ON
-    //        fanCondition = 1;
-    //      }
-    //      else {                         // fan auto 모드시, dust >= 50 이 아니라면 fan OFF
-    //        fanCondition = 0;
-    //      }
-    //    }
-    //    else {
-    //      Serial.println("auto fan mode : OFF");
-    //    }
-    //
-    //    if (fanCondition == 1) {           //fan ON / OFF 여부 판단 & 상태 시리얼 출력
-    //      digitalWrite(fanPin, HIGH);
-    //      Serial.println("fan : ON");
-    //    }
-    //    else {
-    //      digitalWrite(fanPin, LOW);
-    //      Serial.println("fan : OFF");
-    //    }
-
-    //===============================================================
     //새로고침 빈도
     Serial.println("\n\n\n\n\n\n\n\n\n\n");
   }
@@ -224,7 +214,27 @@ void loop() {
       gas_servo_count++;
     }
   }
+  check_flag();
+}
 
+void check_flag()
+{
+  if(aircon) digitalWrite(AIRPIN, HIGH);
+  else digitalWrite(AIRPIN, LOW);
+  if(boiler) digitalWrite(BOILPIN, HIGH);
+  else digitalWrite(BOILPIN, LOW);
+  if(humidifier) digitalWrite(HUMIDIFPIN, HIGH);
+  else digitalWrite(HUMIDIFPIN, LOW);
+  if(dehumidifier) digitalWrite(DEHUMIFPIN, HIGH);
+  else digitalWrite(DEHUMIFPIN, LOW);
+  if(fan) digitalWrite(FANPIN, HIGH);
+  else digitalWrite(FANPIN, LOW);
+  
+  for(int i = 0; i < 3; i++)
+  {
+    if(room_led[i]) digitalWrite(LED1 + i, HIGH);
+    else digitalWrite(LED1 + i, LOW);
+  }
 }
 
 void send_data() // 파이쪽으로 보내는 데이터 관리
@@ -233,28 +243,28 @@ void send_data() // 파이쪽으로 보내는 데이터 관리
   PISerial.print(temperature);
   PISerial.println("");
   PISerial.print("aircon : ");
-  PISerial.print(aircon); //
+  PISerial.print(aircon);
   PISerial.println("");
   PISerial.print("boiler : ");
-  PISerial.print(boiler); //
+  PISerial.print(boiler);
   PISerial.println("");
   PISerial.print("humidity : ");
   PISerial.print(humidity);
   PISerial.println("");
   PISerial.print("humidifier : ");
-  PISerial.print(humidifier); //
+  PISerial.print(humidifier);
   PISerial.println("");
   PISerial.print("dehumidifier : ");
-  PISerial.print(dehumidifier); //
+  PISerial.print(dehumidifier);
   PISerial.println("");
   PISerial.print("air : ");
   PISerial.print(dust_voltage);
   PISerial.println("");
   PISerial.print("fan : ");
-  PISerial.print(fan); //
+  PISerial.print(fan);
   PISerial.println("");
   PISerial.print("gasvalve : ");
-  PISerial.print(gas_servo); //
+  PISerial.print(gas_servo);
   PISerial.println("");
   PISerial.print("livingroom led : ");
   PISerial.print(room_led[0]);
